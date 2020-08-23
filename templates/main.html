@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+        <script type=text/javascript src="{{url_for('static', filename='js/main.js') }}"></script>
+
+        <title>Albert Heijn receipts</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col">
+                    <div class="card">
+                        <img src="/img/{{filename}}" class="card-img-top img-fluid" alt="Responsive image">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <h5 class="card-title">{{filename}}</h5>
+                                <p class="card-text"></p>
+                                <h5 id="price" data-total="{{data['total']}}" data-subtotal="{{data['subtotal']}}">Total: € {{data['total']}}</h5>
+                                <h5 id="price-me"></h5>
+                                <h5 id="price-others" class="float-left"></h5>
+
+                                <button class="btn btn-secondary dropdown-toggle float-right" type="button" id="dropdownMenuButton" data-toggle="dropdown">Uploads</button>
+                                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                    {% for file in files %}
+                                        <a class="dropdown-item" href="/?filename={{file}}">{{file}}</a>
+                                    {% endfor %}
+                                </div>
+
+                            </li>
+                            <li class="list-group-item">
+                                <form method=post enctype=multipart/form-data>
+                                    <input type=file name=file class="w-100">
+                                    <button type=submit value=Upload class="btn btn-block btn-primary float-right mt-2">Upload</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col">
+                    {% if not data['items'] %}
+                        <h2>No data available.</h2>
+                    {% else %}
+                        <table id="products-table" class="table" data-products-count="{{data['items']|length}}" data-users-count="3">
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Product</th>
+                                <th scope="col">Price</th>
+                                <th scope="col">Who?</th>
+                            </tr>
+                            {% for row in data['items'] %}
+                                <tr>
+                                <td>{{row[0]}}</td>
+                                <td>{{row[1]}}</td>
+                                <td>€ {{row[2]}}</td>
+                                <td>
+                                    <div class="col-sm-10">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="{{loop.index}}" id="{{loop.index}}-0" value="{{loop.index}}-0" data-price="{{row[2]}}">
+                                            <label class="form-check-label" for="{{loop.index}}-0">Myself</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="{{loop.index}}" id="{{loop.index}}-1" value="{{loop.index}}-1" data-price="{{row[2]}}">
+                                            <label class="form-check-label" for="{{loop.index}}-1">Others</label>
+                                        </div>
+                                        <div class="form-check disabled">
+                                            <input class="form-check-input" type="radio" name="{{loop.index}}" id="{{loop.index}}-2" value="{{loop.index}}-2" data-price="{{row[2]}}" checked>
+                                            <label class="form-check-label" for="{{loop.index}}-2">All</label>
+                                        </div>
+                                    </div></td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

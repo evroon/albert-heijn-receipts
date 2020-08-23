@@ -2,9 +2,17 @@ from PIL import Image
 import pytesseract
 import subprocess
 import difflib
-import numpy as np
+import json
+from flask import Flask, flash, request, redirect, url_for, render_template, send_from_directory
+from werkzeug.utils import secure_filename
+import os
 
-name = 'test'
+UPLOAD_FOLDER = 'img'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.secret_key = 'a not so secret key for debugging'
 
 def execute_cmd(command):
     ''' Execute a shell command and print output continuously. '''
@@ -14,7 +22,7 @@ def execute_cmd(command):
         print(stdout_line)
 
     popen.stdout.close()
-    code = popen.wait()
+    popen.wait()
 
 
 def fuzzy_find(lines, keyword, accuracy=0.7):
@@ -33,11 +41,18 @@ def fuzzy_find(lines, keyword, accuracy=0.7):
     return None
 
 
-def main():
-    cmd = 'convert -auto-level -sharpen 0x4.0 -contrast img/{name}.jpg tmp/{name}.jpg'.format(name=name)
+def process(filename):
+    name = os.path.splitext(filename)[0]
+    output_path = 'out/{}.json'.format(name)
+
+    if os.path.exists(output_path):
+        with open(output_path, 'r') as f:
+            return json.loads(f.read())
+
+    cmd = 'convert -auto-level -sharpen 0x4.0 -contrast img/{filename} tmp/{filename}'.format(filename=filename)
     execute_cmd(cmd)
 
-    text = pytesseract.image_to_string(Image.open('tmp/{}.jpg'.format(name)))
+    text = pytesseract.image_to_string(Image.open('tmp/{}'.format(filename)))
     text = text.lower()
     text = text.replace(',', '.')
     text = text.replace('\n\n', '\n')
@@ -88,20 +103,59 @@ def main():
         table[i] = '{};{};{}'.format(product, amount, price)
 
     table = [x for x in table if x is not '']
-    result = '\n'.join(table)
-    total_amount = 0
+    subtotal_price = 0
     total_products = 0
 
     for item in data:
-        total_amount += item[2]
+        subtotal_price += item[2]
         total_products += item[0]
 
-    total_amount = lines[fuzzy_find(text.split('\n'), 'pinnen')].split(' ')[1]
-    result += '\n;;\nTotal;{};{}'.format(total_products, total_amount)
-    print('Total: ' + total_amount)
+    total_price = lines[fuzzy_find(text.split('\n'), 'pinnen')].split(' ')[1]
+    output = {
+        'items': data,
+        'total': total_price,
+        'subtotal': subtotal_price,
+    }
 
-    with open('out/{}.csv'.format(name), 'w') as f:
-        f.write(result)
+    with open(output_path, 'w') as f:
+        f.write(json.dumps(output))
+
+    return output
 
 
-main()
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/img/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/', methods=['GET', 'POST'])
+def upload_file():
+    filename = request.args.get('filename')
+    data = []
+
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+
+        file = request.files['file']
+
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            return redirect(url_for('upload_file', filename=filename))
+
+    if filename != None:
+        data = process(filename)
+
+    files = os.listdir(app.config['UPLOAD_FOLDER'])
+
+    return render_template('main.html', data=data, filename=filename, files=files)
